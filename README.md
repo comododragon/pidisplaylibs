@@ -95,6 +95,24 @@ Under raspbian, all needed libraries are already provided. To perform a simple c
 * Run `make` for one of the example files (e.g. `make bin/test1`);
 * Run example with superuser rights, like `sudo` (e.g. `sudo ./bin/test1 lib/ili9325.so`);
 
+## Example programs
+
+PiDisplayLibs comes supplied with some example source codes to give a glimpse of its usage:
+
+* `test1.c`: Draw some gradient bars. Usage example:
+```
+sudo ./bin/test1 DRIVERPATH
+	where DRIVERPATH is path to a display driver (*.so)
+```
+* `test2.c`: Scroll a simple text. Usage example:
+```
+sudo ./bin/test2 DRIVERPATH FONTPATH STRING REPEATAMT
+	where DRIVERPATH is path to a display driver (*.so)
+	      FONTPATH is path to a TTF font file (.ttf)
+	      STRING is the string to be printed
+          REPEATAMT the amount of times the string should be scrolled
+```
+
 ## Future work
 
 * Provide support for older boards automatically;

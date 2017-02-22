@@ -22,6 +22,10 @@ ifeq ($(DEBUG),yes)
     DEBUGFLAG=-g
 endif
 
+bin/test2: src/tests/test2.c
+	mkdir -p bin
+	$(CC) $< -Iinclude `freetype-config --cflags` -o $@ -ldl $(DEBUGFLAG) -O3 `freetype-config --libs`
+
 bin/test%: src/tests/test%.c
 	mkdir -p bin
 	$(CC) $< -Iinclude -o $@ -ldl $(DEBUGFLAG) -O3
