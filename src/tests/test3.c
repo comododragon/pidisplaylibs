@@ -101,24 +101,12 @@ int main(int argc, char *argv[]) {
 	png_read_image(pngStruct, pngRowpointers);
 	png_read_end(pngStruct, NULL);
 
-	printf("%d %d %d %d %d %d %d %d\n", pngRowpointers[0][0] & 0xff, pngRowpointers[0][1] & 0xff,  pngRowpointers[0][2] & 0xff, pngRowpointers[0][3] & 0xff, pngRowpointers[0][4] & 0xff, pngRowpointers[0][5] & 0xff,  pngRowpointers[0][6] & 0xff, pngRowpointers[0][7] & 0xff);
-
 	/* Initialise display */
 	retVal = display_init(NULL, 0);
 	ASSERT(DISPLAY_OK == retVal, fprintf(stderr, "Error: display_init() failed with code %d\n", retVal));
 
 	/* Set coordinate to (0,0) */
 	display_set_xy(0, 0);
-
-	switch(orientation) {
-		case 0:
-		case 1:
-			break;
-		case 2:
-			break;
-		default:
-			break;
-	}
 
 	for(i = 0; i < 240; i++) {
 		for(j = 0; j < 320; j++) {
@@ -136,9 +124,9 @@ int main(int argc, char *argv[]) {
 			}
 			else if(1 == orientation) {
 				if(i < pngWidth && j < pngHeight) {
-					r = pngRowpointers[pngHeight - j][(4 * i)];
-					g = pngRowpointers[pngHeight - j][(4 * i) + 1];
-					b = pngRowpointers[pngHeight - j][(4 * i) + 2];
+					r = pngRowpointers[pngHeight - j - 1][(4 * i)];
+					g = pngRowpointers[pngHeight - j - 1][(4 * i) + 1];
+					b = pngRowpointers[pngHeight - j - 1][(4 * i) + 2];
 				}
 				else {
 					r = 0;
@@ -148,9 +136,9 @@ int main(int argc, char *argv[]) {
 			}
 			else if(2 == orientation) {
 				if(j < pngWidth && i < pngHeight) {
-					r = pngRowpointers[pngHeight - i][(4 * (pngWidth - j))];
-					g = pngRowpointers[pngHeight - i][(4 * (pngWidth - j)) + 1];
-					b = pngRowpointers[pngHeight - i][(4 * (pngWidth - j)) + 2];
+					r = pngRowpointers[pngHeight - i - 1][(4 * (pngWidth - j - 1))];
+					g = pngRowpointers[pngHeight - i - 1][(4 * (pngWidth - j - 1)) + 1];
+					b = pngRowpointers[pngHeight - i - 1][(4 * (pngWidth - j - 1)) + 2];
 				}
 				else {
 					r = 0;
@@ -160,9 +148,9 @@ int main(int argc, char *argv[]) {
 			}
 			else if(3 == orientation) {
 				if(i < pngWidth && j < pngHeight) {
-					r = pngRowpointers[j][(4 * (pngWidth - i))];
-					g = pngRowpointers[j][(4 * (pngWidth - i)) + 1];
-					b = pngRowpointers[j][(4 * (pngWidth - i)) + 2];
+					r = pngRowpointers[j][(4 * (pngWidth - i - 1))];
+					g = pngRowpointers[j][(4 * (pngWidth - i - 1)) + 1];
+					b = pngRowpointers[j][(4 * (pngWidth - i - 1)) + 2];
 				}
 				else {
 					r = 0;
