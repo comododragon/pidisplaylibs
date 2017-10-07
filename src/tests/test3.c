@@ -1,13 +1,29 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <png.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* jpeglib.h must come after stdio.h */
+#include <jpeglib.h>
 
 #include "common.h"
 #include "display.h"
 
-int main(int argc, char *argv[]) {
+typedef struct {
+	struct jpeg_error_mgr stdErrorMgr;
+	jmp_buf jmpBuffer;
+} silent_error_mgr;
+
+METHODDEF(void) silent_error_jump(j_common_ptr jpegInfo) {
+	silent_error_mgr *errorMgr = (silent_error_mgr *) jpegInfo->err;
+	longjmp(errorMgr->jmpBuffer, 1);
+}
+
+int pngMode(int argc, char *argv[]) {
+	int rv = 0;
 	int i, j;
 	int orientation;
 	char *driverLibPath;
@@ -32,42 +48,42 @@ int main(int argc, char *argv[]) {
 	unsigned char r, g, b;
 
 	/* Check if drivers .so file was informed */
-	ASSERT(4 == argc, fprintf(stderr, "Usage: %s DRIVERSOFILE PNGFILE ORIENTATION\n", argv[0]));
+	ASSERT(4 == argc, rv = -1; fprintf(stderr, "Usage: %s DRIVERSOFILE IMGFILE ORIENTATION\n", argv[0]));
 	driverLibPath = argv[1];
 	pngPath = argv[2];
 	orientation = atoi(argv[3]) % 4;
 
 	/* Attempt to load driver library */
 	driverLibrary = dlopen(driverLibPath, RTLD_LAZY);
-	ASSERT(driverLibrary != NULL, fprintf(stderr, "Error: dlopen(): %s\n", dlerror()));
+	ASSERT(driverLibrary != NULL, rv = -1; fprintf(stderr, "Error: dlopen(): %s\n", dlerror()));
 
 	/* Retrieve display_init() */
 	display_init = dlsym(driverLibrary, "display_init");
-	ASSERT(display_init != NULL, fprintf(stderr, "Error: dlsym(\"display_init\"): %s\n", dlerror()));
+	ASSERT(display_init != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_init\"): %s\n", dlerror()));
 
 	/* Retrieve display_set_xy() */
 	display_set_xy = dlsym(driverLibrary, "display_set_xy");
-	ASSERT(display_set_xy != NULL, fprintf(stderr, "Error: dlsym(\"display_set_xy\"): %s\n", dlerror()));
+	ASSERT(display_set_xy != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_set_xy\"): %s\n", dlerror()));
 
 	/* Retrieve display_draw() */
 	display_draw = dlsym(driverLibrary, "display_draw");
-	ASSERT(display_draw != NULL, fprintf(stderr, "Error: dlsym(\"display_draw\"): %s\n", dlerror()));
+	ASSERT(display_draw != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_draw\"): %s\n", dlerror()));
 
 	/* Retrieve display_finish() */
 	display_finish = dlsym(driverLibrary, "display_finish");
-	ASSERT(display_finish != NULL, fprintf(stderr, "Error: dlsym(\"display_finish\"): %s\n", dlerror()));
+	ASSERT(display_finish != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_finish\"): %s\n", dlerror()));
 
 	pngFile = fopen(argv[2], "rb");
-	ASSERT(pngFile, fprintf(stderr, "Error: %s: %s\n", strerror(errno), pngPath));
+	ASSERT(pngFile, rv = -1; fprintf(stderr, "Error: %s: %s\n", strerror(errno), pngPath));
 
 	fread(pngSignature, 1, 8, pngFile);
-	ASSERT(png_check_sig(pngSignature, 8), fprintf(stderr, "Error: Invalid PNG file: %s\n", pngPath));
+	ASSERT(png_check_sig(pngSignature, 8), rv = -2; fprintf(stderr, "Error: Invalid PNG file: %s\n", pngPath));
 
 	pngStruct = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	ASSERT(pngStruct, fprintf(stderr, "Error: Failed to create png struct\n"));
+	ASSERT(pngStruct, rv = -1; fprintf(stderr, "Error: Failed to create png struct\n"));
 
 	pngInfo = png_create_info_struct(pngStruct);
-	ASSERT(pngInfo, fprintf(stderr, "Error: Failed to create png info\n"));
+	ASSERT(pngInfo, rv = -1; fprintf(stderr, "Error: Failed to create png info\n"));
 
 	png_init_io(pngStruct, pngFile);
 	png_set_sig_bytes(pngStruct, 8);
@@ -93,9 +109,9 @@ int main(int argc, char *argv[]) {
 	pngChannels = png_get_channels(pngStruct, pngInfo);
 
 	pngData = malloc(pngRowbytes * pngHeight);
-	ASSERT(pngData, fprintf(stderr, "Error: Out of memory!\n"));
+	ASSERT(pngData, rv = -1; fprintf(stderr, "Error: Out of memory!\n"));
 	pngRowpointers = malloc(pngHeight * sizeof(unsigned char *));
-	ASSERT(pngData, fprintf(stderr, "Error: Out of memory!\n"));
+	ASSERT(pngData, rv = -1; fprintf(stderr, "Error: Out of memory!\n"));
 	for(i = 0; i < pngHeight; i++)
 		pngRowpointers[i] = pngData + i * pngRowbytes;
 	png_read_image(pngStruct, pngRowpointers);
@@ -103,7 +119,7 @@ int main(int argc, char *argv[]) {
 
 	/* Initialise display */
 	retVal = display_init(NULL, 0);
-	ASSERT(DISPLAY_OK == retVal, fprintf(stderr, "Error: display_init() failed with code %d\n", retVal));
+	ASSERT(DISPLAY_OK == retVal, rv = -1; fprintf(stderr, "Error: display_init() failed with code %d\n", retVal));
 
 	/* Set coordinate to (0,0) */
 	display_set_xy(0, 0);
@@ -182,6 +198,122 @@ _err:
 
 	if(pngFile)
 		fclose(pngFile);
+
+	return 0;
+}
+
+int jpgMode(int argc, char *argv[]) {
+	int rv = 0;
+	int i, j;
+	int orientation;
+	char *driverLibPath;
+	void *driverLibrary = NULL;
+	int (* display_init)(void *, int) = NULL;
+	int (* display_set_xy)(unsigned int, unsigned int) = NULL;
+	int (* display_draw)(unsigned char, unsigned char,  unsigned char) = NULL;
+	int (* display_finish)(void) = NULL;
+	int retVal = DISPLAY_OK;
+	char *jpgPath;
+	FILE *jpgFile = NULL;
+	struct jpeg_decompress_struct jpegInfo;
+	silent_error_mgr errorMgr;
+	bool jpegInfoCreated = false;
+	JSAMPARRAY jpgBuffer;
+	unsigned int jpgWidth, jpgHeight;
+	unsigned char *jpgData = NULL;
+	unsigned char **jpgRowpointers = NULL;
+	unsigned char r, g, b;
+
+#if 0
+	/* Check if drivers .so file was informed */
+	ASSERT(4 == argc, rv = -1; fprintf(stderr, "Usage: %s DRIVERSOFILE IMGFILE ORIENTATION\n", argv[0]));
+	driverLibPath = argv[1];
+	jpgPath = argv[2];
+	orientation = atoi(argv[3]) % 4;
+
+	/* Attempt to load driver library */
+	driverLibrary = dlopen(driverLibPath, RTLD_LAZY);
+	ASSERT(driverLibrary != NULL, rv = -1; fprintf(stderr, "Error: dlopen(): %s\n", dlerror()));
+
+	/* Retrieve display_init() */
+	display_init = dlsym(driverLibrary, "display_init");
+	ASSERT(display_init != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_init\"): %s\n", dlerror()));
+
+	/* Retrieve display_set_xy() */
+	display_set_xy = dlsym(driverLibrary, "display_set_xy");
+	ASSERT(display_set_xy != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_set_xy\"): %s\n", dlerror()));
+
+	/* Retrieve display_draw() */
+	display_draw = dlsym(driverLibrary, "display_draw");
+	ASSERT(display_draw != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_draw\"): %s\n", dlerror()));
+
+	/* Retrieve display_finish() */
+	display_finish = dlsym(driverLibrary, "display_finish");
+	ASSERT(display_finish != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_finish\"): %s\n", dlerror()));
+#endif
+
+	jpgFile = fopen(argv[2], "rb");
+	ASSERT(jpgFile, rv = -1; fprintf(stderr, "Error: %s: %s\n", strerror(errno), jpgPath));
+
+	jpegInfo.err = jpeg_std_error(&(errorMgr.stdErrorMgr));
+	errorMgr.stdErrorMgr.error_exit = silent_error_jump;
+	if(setjmp(errorMgr.jmpBuffer)) {
+		(*jpegInfo.err->output_message)((j_common_ptr) &jpegInfo);
+		ASSERT(0, rv = -1; fprintf(stderr, "JPEG error\n"));
+	}
+
+	jpeg_create_decompress(&jpegInfo);
+	jpegInfoCreated = true;
+	jpeg_stdio_src(&jpegInfo, jpgFile);
+
+	jpeg_read_header(&jpegInfo, true);
+	jpeg_start_decompress(&jpegInfo);
+
+	jpgWidth = jpegInfo.output_width * jpegInfo.output_components;
+	jpgHeight = jpegInfo.output_height;
+	jpgBuffer = (*jpegInfo.mem->alloc_sarray)((j_common_ptr) &jpegInfo, JPOOL_IMAGE, jpgWidth, 1);
+
+	jpgData = malloc(jpgWidth * jpgHeight);
+	ASSERT(jpgData, rv = -1; fprintf(stderr, "Error: Out of memory!\n"));
+	jpgRowpointers = malloc(jpgHeight * sizeof(unsigned char *));
+	ASSERT(jpgData, rv = -1; fprintf(stderr, "Error: Out of memory!\n"));
+	for(i = 0; i < jpgHeight; i++)
+		jpgRowpointers[i] = jpgData + i * jpgWidth;
+
+	for(i = 0; jpegInfo.output_scanline < jpgHeight; i++) {
+		jpeg_read_scanlines(&jpegInfo, jpgBuffer, 1);
+		memcpy(jpgRowpointers[i], jpgBuffer, jpgWidth);
+	}
+
+_err:
+
+	if(jpgRowpointers)
+		free(jpgRowpointers);
+
+	if(jpgData);
+		free(jpgData);
+
+	if(jpegInfoCreated)
+		jpeg_destroy_decompress(&jpegInfo);
+
+	if(display_finish)
+		display_finish();
+
+	if(driverLibrary)
+		dlclose(driverLibrary);
+
+	if(jpgFile)
+		fclose(jpgFile);
+
+	return 0;
+}
+
+int main(int argc, char *argv[]) {
+	int rv;
+
+	//rv = pngMode(argc, argv);
+	//if(-2 == rv)
+		rv = jpgMode(argc, argv);
 
 	return 0;
 }
