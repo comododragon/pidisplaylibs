@@ -199,7 +199,7 @@ _err:
 	if(pngFile)
 		fclose(pngFile);
 
-	return 0;
+	return rv;
 }
 
 int jpgMode(int argc, char *argv[]) {
@@ -365,7 +365,7 @@ _err:
 	if(jpgFile)
 		fclose(jpgFile);
 
-	return 0;
+	return rv;
 }
 
 int main(int argc, char *argv[]) {
