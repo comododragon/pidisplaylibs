@@ -38,6 +38,7 @@ int pngMode(int argc, char *argv[]) {
 	unsigned char pngSignature[8];
 	png_structp pngStruct = NULL;
 	png_infop pngInfo = NULL;
+	unsigned int pngComponents;
 	unsigned int pngWidth, pngHeight;
 	int pngDepth, pngColorType;
 	//double pngDisplayExponent = 2.2;
@@ -106,7 +107,7 @@ int pngMode(int argc, char *argv[]) {
 
 	png_read_update_info(pngStruct, pngInfo);
 	pngRowbytes = png_get_rowbytes(pngStruct, pngInfo);
-	pngChannels = png_get_channels(pngStruct, pngInfo);
+	pngComponents = png_get_channels(pngStruct, pngInfo);
 
 	pngData = malloc(pngRowbytes * pngHeight);
 	ASSERT(pngData, rv = -1; fprintf(stderr, "Error: Out of memory!\n"));
@@ -128,9 +129,9 @@ int pngMode(int argc, char *argv[]) {
 		for(j = 0; j < 320; j++) {
 			if(0 == orientation) {
 				if(j < pngWidth && i < pngHeight) {
-					r = pngRowpointers[i][(4 * j)];
-					g = pngRowpointers[i][(4 * j) + 1];
-					b = pngRowpointers[i][(4 * j) + 2];
+					r = pngRowpointers[i][(pngComponents * j)];
+					g = pngRowpointers[i][(pngComponents * j) + 1];
+					b = pngRowpointers[i][(pngComponents * j) + 2];
 				}
 				else {
 					r = 0;
@@ -140,9 +141,9 @@ int pngMode(int argc, char *argv[]) {
 			}
 			else if(1 == orientation) {
 				if(i < pngWidth && j < pngHeight) {
-					r = pngRowpointers[pngHeight - j - 1][(4 * i)];
-					g = pngRowpointers[pngHeight - j - 1][(4 * i) + 1];
-					b = pngRowpointers[pngHeight - j - 1][(4 * i) + 2];
+					r = pngRowpointers[pngHeight - j - 1][(pngComponents * i)];
+					g = pngRowpointers[pngHeight - j - 1][(pngComponents * i) + 1];
+					b = pngRowpointers[pngHeight - j - 1][(pngComponents * i) + 2];
 				}
 				else {
 					r = 0;
@@ -152,9 +153,9 @@ int pngMode(int argc, char *argv[]) {
 			}
 			else if(2 == orientation) {
 				if(j < pngWidth && i < pngHeight) {
-					r = pngRowpointers[pngHeight - i - 1][(4 * (pngWidth - j - 1))];
-					g = pngRowpointers[pngHeight - i - 1][(4 * (pngWidth - j - 1)) + 1];
-					b = pngRowpointers[pngHeight - i - 1][(4 * (pngWidth - j - 1)) + 2];
+					r = pngRowpointers[pngHeight - i - 1][(pngComponents * (pngWidth - j - 1))];
+					g = pngRowpointers[pngHeight - i - 1][(pngComponents * (pngWidth - j - 1)) + 1];
+					b = pngRowpointers[pngHeight - i - 1][(pngComponents * (pngWidth - j - 1)) + 2];
 				}
 				else {
 					r = 0;
@@ -164,9 +165,9 @@ int pngMode(int argc, char *argv[]) {
 			}
 			else if(3 == orientation) {
 				if(i < pngWidth && j < pngHeight) {
-					r = pngRowpointers[j][(4 * (pngWidth - i - 1))];
-					g = pngRowpointers[j][(4 * (pngWidth - i - 1)) + 1];
-					b = pngRowpointers[j][(4 * (pngWidth - i - 1)) + 2];
+					r = pngRowpointers[j][(pngComponents * (pngWidth - i - 1))];
+					g = pngRowpointers[j][(pngComponents * (pngWidth - i - 1)) + 1];
+					b = pngRowpointers[j][(pngComponents * (pngWidth - i - 1)) + 2];
 				}
 				else {
 					r = 0;
@@ -219,6 +220,7 @@ int jpgMode(int argc, char *argv[]) {
 	silent_error_mgr errorMgr;
 	bool jpegInfoCreated = false;
 	JSAMPARRAY jpgBuffer;
+	unsigned int jpgComponents;
 	unsigned int jpgWidth, jpgHeight;
 	unsigned char *jpgData = NULL;
 	unsigned char **jpgRowpointers = NULL;
@@ -267,7 +269,8 @@ int jpgMode(int argc, char *argv[]) {
 	jpeg_read_header(&jpegInfo, true);
 	jpeg_start_decompress(&jpegInfo);
 
-	jpgWidth = jpegInfo.output_width * jpegInfo.output_components;
+	jpgComponents = jpegInfo.output_components;
+	jpgWidth = jpegInfo.output_width * jpgComponents;
 	jpgHeight = jpegInfo.output_height;
 	jpgBuffer = (*jpegInfo.mem->alloc_sarray)((j_common_ptr) &jpegInfo, JPOOL_IMAGE, jpgWidth, 1);
 
@@ -294,9 +297,9 @@ int jpgMode(int argc, char *argv[]) {
 		for(j = 0; j < 320; j++) {
 			if(0 == orientation) {
 				if(j < jpgWidth && i < jpgHeight) {
-					r = jpgRowpointers[i][(4 * j)];
-					g = jpgRowpointers[i][(4 * j) + 1];
-					b = jpgRowpointers[i][(4 * j) + 2];
+					r = jpgRowpointers[i][(jpgComponents * j)];
+					g = jpgRowpointers[i][(jpgComponents * j) + 1];
+					b = jpgRowpointers[i][(jpgComponents * j) + 2];
 				}
 				else {
 					r = 0;
@@ -306,9 +309,9 @@ int jpgMode(int argc, char *argv[]) {
 			}
 			else if(1 == orientation) {
 				if(i < jpgWidth && j < jpgHeight) {
-					r = jpgRowpointers[jpgHeight - j - 1][(4 * i)];
-					g = jpgRowpointers[jpgHeight - j - 1][(4 * i) + 1];
-					b = jpgRowpointers[jpgHeight - j - 1][(4 * i) + 2];
+					r = jpgRowpointers[jpgHeight - j - 1][(jpgComponents * i)];
+					g = jpgRowpointers[jpgHeight - j - 1][(jpgComponents * i) + 1];
+					b = jpgRowpointers[jpgHeight - j - 1][(jpgComponents * i) + 2];
 				}
 				else {
 					r = 0;
@@ -318,9 +321,9 @@ int jpgMode(int argc, char *argv[]) {
 			}
 			else if(2 == orientation) {
 				if(j < jpgWidth && i < jpgHeight) {
-					r = jpgRowpointers[jpgHeight - i - 1][(4 * (jpgWidth - j - 1))];
-					g = jpgRowpointers[jpgHeight - i - 1][(4 * (jpgWidth - j - 1)) + 1];
-					b = jpgRowpointers[jpgHeight - i - 1][(4 * (jpgWidth - j - 1)) + 2];
+					r = jpgRowpointers[jpgHeight - i - 1][(jpgComponents * (jpgWidth - j - 1))];
+					g = jpgRowpointers[jpgHeight - i - 1][(jpgComponents * (jpgWidth - j - 1)) + 1];
+					b = jpgRowpointers[jpgHeight - i - 1][(jpgComponents * (jpgWidth - j - 1)) + 2];
 				}
 				else {
 					r = 0;
@@ -330,9 +333,9 @@ int jpgMode(int argc, char *argv[]) {
 			}
 			else if(3 == orientation) {
 				if(i < jpgWidth && j < jpgHeight) {
-					r = jpgRowpointers[j][(4 * (jpgWidth - i - 1))];
-					g = jpgRowpointers[j][(4 * (jpgWidth - i - 1)) + 1];
-					b = jpgRowpointers[j][(4 * (jpgWidth - i - 1)) + 2];
+					r = jpgRowpointers[j][(jpgComponents * (jpgWidth - i - 1))];
+					g = jpgRowpointers[j][(jpgComponents * (jpgWidth - i - 1)) + 1];
+					b = jpgRowpointers[j][(jpgComponents * (jpgWidth - i - 1)) + 2];
 				}
 				else {
 					r = 0;
