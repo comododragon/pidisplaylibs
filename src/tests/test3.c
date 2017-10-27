@@ -224,7 +224,6 @@ int jpgMode(int argc, char *argv[]) {
 	unsigned char **jpgRowpointers = NULL;
 	unsigned char r, g, b;
 
-#if 0
 	/* Check if drivers .so file was informed */
 	ASSERT(4 == argc, rv = -1; fprintf(stderr, "Usage: %s DRIVERSOFILE IMGFILE ORIENTATION\n", argv[0]));
 	driverLibPath = argv[1];
@@ -250,7 +249,6 @@ int jpgMode(int argc, char *argv[]) {
 	/* Retrieve display_finish() */
 	display_finish = dlsym(driverLibrary, "display_finish");
 	ASSERT(display_finish != NULL, rv = -1; fprintf(stderr, "Error: dlsym(\"display_finish\"): %s\n", dlerror()));
-#endif
 
 	jpgFile = fopen(argv[2], "rb");
 	ASSERT(jpgFile, rv = -1; fprintf(stderr, "Error: %s: %s\n", strerror(errno), jpgPath));
@@ -282,7 +280,69 @@ int jpgMode(int argc, char *argv[]) {
 
 	for(i = 0; jpegInfo.output_scanline < jpgHeight; i++) {
 		jpeg_read_scanlines(&jpegInfo, jpgBuffer, 1);
-		memcpy(jpgRowpointers[i], jpgBuffer, jpgWidth);
+		memcpy(jpgRowpointers[i], jpgBuffer[0], jpgWidth);
+	}
+
+	/* Initialise display */
+	retVal = display_init(NULL, 0);
+	ASSERT(DISPLAY_OK == retVal, rv = -1; fprintf(stderr, "Error: display_init() failed with code %d\n", retVal));
+
+	/* Set coordinate to (0,0) */
+	display_set_xy(0, 0);
+
+	for(i = 0; i < 240; i++) {
+		for(j = 0; j < 320; j++) {
+			if(0 == orientation) {
+				if(j < jpgWidth && i < jpgHeight) {
+					r = jpgRowpointers[i][(4 * j)];
+					g = jpgRowpointers[i][(4 * j) + 1];
+					b = jpgRowpointers[i][(4 * j) + 2];
+				}
+				else {
+					r = 0;
+					g = 0;
+					b = 0;
+				}
+			}
+			else if(1 == orientation) {
+				if(i < jpgWidth && j < jpgHeight) {
+					r = jpgRowpointers[jpgHeight - j - 1][(4 * i)];
+					g = jpgRowpointers[jpgHeight - j - 1][(4 * i) + 1];
+					b = jpgRowpointers[jpgHeight - j - 1][(4 * i) + 2];
+				}
+				else {
+					r = 0;
+					g = 0;
+					b = 0;
+				}
+			}
+			else if(2 == orientation) {
+				if(j < jpgWidth && i < jpgHeight) {
+					r = jpgRowpointers[jpgHeight - i - 1][(4 * (jpgWidth - j - 1))];
+					g = jpgRowpointers[jpgHeight - i - 1][(4 * (jpgWidth - j - 1)) + 1];
+					b = jpgRowpointers[jpgHeight - i - 1][(4 * (jpgWidth - j - 1)) + 2];
+				}
+				else {
+					r = 0;
+					g = 0;
+					b = 0;
+				}
+			}
+			else if(3 == orientation) {
+				if(i < jpgWidth && j < jpgHeight) {
+					r = jpgRowpointers[j][(4 * (jpgWidth - i - 1))];
+					g = jpgRowpointers[j][(4 * (jpgWidth - i - 1)) + 1];
+					b = jpgRowpointers[j][(4 * (jpgWidth - i - 1)) + 2];
+				}
+				else {
+					r = 0;
+					g = 0;
+					b = 0;
+				}
+			}
+
+			display_draw(r, g, b);
+		}
 	}
 
 _err:
@@ -311,8 +371,8 @@ _err:
 int main(int argc, char *argv[]) {
 	int rv;
 
-	//rv = pngMode(argc, argv);
-	//if(-2 == rv)
+	rv = pngMode(argc, argv);
+	if(-2 == rv)
 		rv = jpgMode(argc, argv);
 
 	return 0;
