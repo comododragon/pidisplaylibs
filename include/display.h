@@ -25,6 +25,8 @@
 #define DISPLAY_OK 0x0
 #define DISPLAY_GPIO_ERROR 0x10000
 
+#ifdef DISPLAY_NOFUNCS
+
 /**
  * @brief Initialise display.
  * @param args Pointer to arguments. See specific notes for each driver.
@@ -55,5 +57,7 @@ int display_draw(unsigned char r, unsigned char g, unsigned char b);
  * @return Return code. See specific notes for each driver.
  */
 int display_finish(void);
+
+#endif
 
 #endif
